@@ -6,11 +6,23 @@ const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const User = require("./model/user")
 const Post = require("./model/post")
+const cloudinary = require('cloudinary').v2;
 const app = express()
 const port = 3001
+const multer = require('multer');
+const streamifier = require('streamifier');
+const storage = multer.memoryStorage();
+const upload = multer({storage});
+
 require('dotenv').config()
 
 require("./config/database").connect()
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 app.use(express.json())
 app.use(cookieParser())
@@ -18,6 +30,26 @@ app.use(cors({
   origin: ["http://localhost:3000", 'https://bidimdepru.de'],
     credentials: true
 }));
+
+app.post('/changeAvatar', upload.single('avatarFile'), async (req, res) => {
+  let cld_upload_stream = cloudinary.uploader.upload_stream(
+    {
+      folder: "avatar"
+    },
+    async function(error, result) {
+        const query = { username: req.body.username };
+        const public_id = result.public_id
+        const foundUser = await User.findOneAndUpdate(query, { avatar: {
+          pathToAvatar: result.url,
+          public_id: public_id
+          }});
+        let oldPublic_id = foundUser.avatar.public_id
+        cloudinary.uploader.destroy(oldPublic_id);
+        return res.status(200).json({ pathToAvatar: result.url})
+    }
+    );
+  streamifier.createReadStream(req.file.buffer).pipe(cld_upload_stream);
+  });
 
 // Registrierung
 app.post("/register", async (req, res) => {
@@ -41,6 +73,10 @@ app.post("/register", async (req, res) => {
         username: username,
         password: encryptedPassword,
         isAdmin: false,
+        avatar: { 
+          pathToUrl: "",
+          public_id: ""
+          },
       });
       // Neuen User zurückgeben
       return res.status(201).json(user);
@@ -80,6 +116,7 @@ app.post(`/login`, async (req, res) => {
         email: user.email,
         username: user.username,
         isAdmin: false,
+        pathToAvatar: user.avatar.pathToAvatar,
       };
 
       return res.status(200).json({auth: true, user: parseUser});
