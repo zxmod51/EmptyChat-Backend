@@ -74,7 +74,7 @@ app.post("/register", async (req, res) => {
         password: encryptedPassword,
         isAdmin: false,
         avatar: { 
-          pathToUrl: "",
+          pathToAvatar: "",
           public_id: ""
           },
       });
