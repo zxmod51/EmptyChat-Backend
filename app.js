@@ -147,6 +147,16 @@ app.post("/post", cookieJwtAuth, async (req, res) => {
   }
 });
 
+// Delete Post
+app.post("/deletePost", cookieJwtAuth, async (req, res) => {
+  try {
+    await Post.deleteOne({ _id: req.body._id });
+    return res.status(200).send("Post deleted!")
+    } catch (err) {
+    console.log(err);
+  }
+});
+
 // Return all posts
 app.get("/getPosts", cookieJwtAuth, async (req, res) => {
   try {
